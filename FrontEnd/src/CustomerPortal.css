@@ -1,0 +1,75 @@
+.page
+{
+    width: 100%;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    font-family: 'Fraunces', serif;
+    background:
+            radial-gradient(circle at 15% 15%, var(--glow-green), transparent 45%),
+            radial-gradient(circle at 85% 85%, var(--glow-gold), transparent 50%),
+            var(--bg);
+}
+.page.loanPage
+{
+    min-height: 100vh;
+    justify-content: flex-start;
+    align-self: center;
+    padding: 10px;
+    box-sizing: border-box;
+    font-family: monospace;
+    font-weight: bold
+}
+.loanBox
+{
+    background-color: #2e303a;
+    padding: 10px;
+    margin: 25px auto;
+    text-align: center;
+    width: 360px;
+    align-content: center;
+    border-radius: 10%;
+}
+
+.loanBox p
+{
+    color: lightgray;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.loanBox h1
+{
+    color: skyblue;
+    font-family: 'Fraunces', serif;
+    font-weight: bolder;
+}
+
+button{
+    height: 46px;
+    margin-top: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    color: #1a1400;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.back
+{
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    margin: 0;
+}
+.payment
+{
+    width: auto;
+    height: auto;
+    background-color: black;
+    color: white;
+    margin-top: 10px;
+}
