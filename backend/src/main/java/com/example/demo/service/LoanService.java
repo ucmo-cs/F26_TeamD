@@ -1,6 +1,7 @@
 
 package com.example.demo.service;
 
+
 import com.example.demo.domain.Customer;
 import com.example.demo.domain.Loan;
 import com.example.demo.repository.CustomerRepository;
@@ -41,6 +42,14 @@ public class LoanService {
     // POST: Create a loan for an existing customer
     public Loan createLoan(Loan loan) {
 
+        // Check that the request contains loan information
+        if (loan == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Loan information is required"
+            );
+        }
+
         // Check that the customer ID was provided
         if (loan.getCustomer() == null ||
                 loan.getCustomer().getCustomerId() == null) {
@@ -50,9 +59,46 @@ public class LoanService {
             );
         }
 
-        Integer customerId = loan.getCustomer().getCustomerId();
+        // Check that the original loan amount is valid
+        if (loan.getOriginalAmount() == null ||
+                loan.getOriginalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Original loan amount must be greater than zero"
+            );
+        }
+
+        // Check that the remaining balance is valid
+        if (loan.getRemainingBalance() == null ||
+                loan.getRemainingBalance().compareTo(BigDecimal.ZERO) < 0 ||
+                loan.getRemainingBalance().compareTo(loan.getOriginalAmount()) > 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Remaining balance must be between zero and the original amount"
+            );
+        }
+
+        // Check that the interest rate is valid
+        if (loan.getInterestRate() == null ||
+                loan.getInterestRate().compareTo(BigDecimal.ZERO) < 0 ||
+                loan.getInterestRate().compareTo(BigDecimal.ONE) > 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Interest rate must be between 0 and 1"
+            );
+        }
+
+        // Check that the loan date was provided
+        if (loan.getLoanDate() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Loan date is required"
+            );
+        }
 
         // Find the existing customer
+        Integer customerId = loan.getCustomer().getCustomerId();
+
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,

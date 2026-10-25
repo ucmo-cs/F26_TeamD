@@ -17,6 +17,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     // findById(id)    -> Find a customer by ID
     // save(customer)  -> Insert or update a customer
     // deleteById(id)  -> Delete a customer
-
     // No need to write SQL for these basic operations!
+    boolean existsByEmail(String email);
 }
