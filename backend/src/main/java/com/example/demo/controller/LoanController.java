@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 // Handles incoming HTTP requests
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/loans")
 public class LoanController {
