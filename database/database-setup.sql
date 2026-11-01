@@ -36,6 +36,7 @@ CREATE TABLE `loan` (
   `original_amount` decimal(12,2) NOT NULL,
   `remaining_balance` decimal(12,2) NOT NULL,
   `interest_rate` decimal(5,4) NOT NULL,
+    `loan_term_months` INT NOT NULL,
   PRIMARY KEY (`loan_id`),
   KEY `customer_id` (`customer_id`),
   CONSTRAINT `loan_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`)
