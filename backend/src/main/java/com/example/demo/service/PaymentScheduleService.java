@@ -17,24 +17,51 @@ public class PaymentScheduleService {
 
     private final PaymentScheduleRepository paymentScheduleRepository;
     private final LoanRepository loanRepository;
+    private final LoanCalculator loanCalculator;
 
     // Constructor
     public PaymentScheduleService(
             PaymentScheduleRepository paymentScheduleRepository,
-            LoanRepository loanRepository) {
+            LoanRepository loanRepository,
+            LoanCalculator loanCalculator) {
 
         this.paymentScheduleRepository = paymentScheduleRepository;
         this.loanRepository = loanRepository;
+        this.loanCalculator = loanCalculator;
     }
 
     // GET: Find a payment schedule using the loan ID
     public PaymentSchedule getScheduleByLoanId(Integer loanId) {
 
-        return paymentScheduleRepository.findByLoan_LoanId(loanId)
+        PaymentSchedule schedule = paymentScheduleRepository
+                .findByLoan_LoanId(loanId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Payment schedule not found"
                 ));
+
+        // Get the loan connected to this schedule
+        Loan loan = schedule.getLoan();
+
+        // Calculate the estimated payoff date
+        if (loan.getRemainingBalance().compareTo(BigDecimal.ZERO) > 0) {
+
+            schedule.setEstimatedPayoffDate(
+                    loanCalculator.calculatePayoffDate(
+                            loan.getRemainingBalance(),
+                            loan.getInterestRate(),
+                            schedule.getPaymentAmount(),
+                            schedule.getFrequency(),
+                            schedule.getNextPaymentDate()
+                    )
+            );
+
+        } else {
+            // Loan is already paid off
+            schedule.setEstimatedPayoffDate(null);
+        }
+
+        return schedule;
     }
 
     // POST: Create a new payment schedule
@@ -100,6 +127,36 @@ public class PaymentScheduleService {
             );
         }
 
+        // Calculate how many months are left on the loan
+        int remainingMonths = loanCalculator.calculateRemainingMonths(
+                loan.getLoanDate(),
+                loan.getLoanTermMonths()
+        );
+
+        // Check whether the loan term has already ended
+        if (remainingMonths <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Loan repayment term has already ended"
+            );
+        }
+
+        // Calculate the minimum required payment
+        BigDecimal minimumPayment = loanCalculator.calculateMinimumPayment(
+                loan.getRemainingBalance(),
+                loan.getInterestRate(),
+                remainingMonths,
+                schedule.getFrequency()
+        );
+
+        // Reject payments below the minimum
+        if (schedule.getPaymentAmount().compareTo(minimumPayment) < 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment must be at least $" + minimumPayment
+            );
+        }
+
         // Link the schedule to the existing loan
         schedule.setLoan(loan);
         schedule.setScheduleId(null);
@@ -147,6 +204,39 @@ public class PaymentScheduleService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Next payment date is required"
+            );
+        }
+
+        // Get the loan connected to this payment schedule
+        Loan loan = existingSchedule.getLoan();
+
+        // Calculate the remaining repayment months
+        int remainingMonths = loanCalculator.calculateRemainingMonths(
+                loan.getLoanDate(),
+                loan.getLoanTermMonths()
+        );
+
+        // Reject schedules if the repayment term has ended
+        if (remainingMonths <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Loan repayment term has already ended"
+            );
+        }
+
+        // Calculate the minimum payment for the selected frequency
+        BigDecimal minimumPayment = loanCalculator.calculateMinimumPayment(
+                loan.getRemainingBalance(),
+                loan.getInterestRate(),
+                remainingMonths,
+                frequency
+        );
+
+        // Reject payments below the minimum
+        if (updatedSchedule.getPaymentAmount().compareTo(minimumPayment) < 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment must be at least $" + minimumPayment
             );
         }
 
