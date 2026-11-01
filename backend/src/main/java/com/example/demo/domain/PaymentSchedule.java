@@ -38,4 +38,9 @@ public class PaymentSchedule {
     // Date of the next scheduled payment
     @Column(name = "next_payment_date")
     private LocalDate nextPaymentDate;
+
+    // @Transient Don't make a column for this field in MySQL
+    @Transient
+    private LocalDate estimatedPayoffDate;
+
 }

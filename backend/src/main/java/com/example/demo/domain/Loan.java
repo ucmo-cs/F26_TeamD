@@ -1,7 +1,7 @@
 
 package com.example.demo.domain;
 
-import jakarta.persistence.*;
+import  jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -49,4 +49,8 @@ public class Loan {
     @Column(name = "interest_rate", nullable = false,
             precision = 5, scale = 4)
     private BigDecimal interestRate;
+
+    @Column(name = "loan_term_months", nullable = false)
+    private Integer loanTermMonths;
+
 }

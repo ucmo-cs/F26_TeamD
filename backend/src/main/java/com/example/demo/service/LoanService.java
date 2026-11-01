@@ -96,6 +96,15 @@ public class LoanService {
             );
         }
 
+        // Check that the loan repayment term is valid
+        if (loan.getLoanTermMonths() == null ||
+                loan.getLoanTermMonths() <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Loan term must be greater than zero months"
+            );
+        }
+
         // Find the existing customer
         Integer customerId = loan.getCustomer().getCustomerId();
 
