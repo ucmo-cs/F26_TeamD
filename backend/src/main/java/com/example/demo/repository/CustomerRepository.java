@@ -3,6 +3,7 @@ package com.example.demo.repository;
 
 // Import our Customer class from the domain package
 import com.example.demo.domain.Customer;
+import java.util.Optional;
 
 // JpaRepository gives us built-in database operations
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,5 +20,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     // deleteById(id)  -> Delete a customer
     // No need to write SQL for these basic operations!
     boolean existsByEmail(String email);
-    java.util.Optional<Customer> findByEmail(String email);
+
+    Optional<Customer> findByEmail(String email);
 }
