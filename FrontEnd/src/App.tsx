@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import CustomerLanding from './CustomerPortal'
 import './App.css'
 import AdminLanding from "./AdminPortal.tsx";
@@ -9,45 +9,47 @@ import AdminLanding from "./AdminPortal.tsx";
 
 
 function App() {
-  // const [count, setCount] = useState(0)
-  const [showPortal, setShowPortal] = useState(false)
-  const [showAdminPortal, setShowAdminPortal] = useState(false)
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [loginError, setLoginError] = useState("")
+  const [session, setSession] = useState<{role: "customer" | "admin"; id: number; displayName: string} | null>(null)
 
-   // if statement to direct to CustomerPortal.tsx
-   if (showPortal) {
-     return <CustomerLanding />
-   }
-   //on click return the admin portal
-   //this is temp until database is set up
-   if (showAdminPortal) {
-       return <AdminLanding />
-   }
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoginError("")
+    try {
+      const response = await fetch("http://localhost:8081/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      })
+      if (!response.ok) throw new Error("Login failed. Check your username/email and password.")
+      setSession(await response.json())
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Could not connect to the server")
+    }
+  }
+
+  if (session?.role === "customer") return <CustomerLanding customerId={session.id} />
+  if (session?.role === "admin") return <AdminLanding adminName={session.displayName} />
 
   return (
     <div className="page">
-      <form className="login-form">
+      <form className="login-form" onSubmit={handleLogin}>
           <h1>Welcome back!</h1>
           <p className="login-subtitle">Sign in to your account</p>
         <div className="field">
-          <label htmlFor="username">Username:</label>
-          <input id="username" type="text" />
+          <label htmlFor="username">Customer email or admin username:</label>
+          <input id="username" type="text" value={username} onChange={(event) => setUsername(event.currentTarget.value)} required />
         </div>
 
         <div className="field">
           <label htmlFor="password">Password:</label>
-          <input id="password" type="password" />
+          <input id="password" type="password" value={password} onChange={(event) => setPassword(event.currentTarget.value)} required />
         </div>
-        
-        <button type="button" className="login-button"
-                onClick={() => setShowPortal(true)}
-        >
-            {/*Admin login in button*/}
-          LOG IN</button>
-          <button type="button"
-                  onClick={() => setShowAdminPortal(true)}
-          >
-           Admin portal
-          </button>
+
+        {loginError && <p role="alert">{loginError}</p>}
+        <button type="submit" className="login-button">LOG IN</button>
       </form>
     </div>
   );

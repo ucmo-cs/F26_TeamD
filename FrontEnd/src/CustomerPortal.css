@@ -10,6 +10,23 @@
             radial-gradient(circle at 85% 85%, var(--glow-gold), transparent 50%),
             var(--bg);
 }
+.page.customerPortalPage
+{
+    min-height: 100vh;
+    justify-content: flex-start;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 72px 16px 24px;
+}
+.customerName
+{
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    margin: 0;
+    font-weight: bold;
+    font-size: 200%;
+}
 .page.loanPage
 {
     min-height: 100vh;
@@ -23,19 +40,33 @@
 .loanBox
 {
     background-color: #2e303a;
-    padding: 10px;
+    padding: 24px;
     margin: 25px auto;
-    text-align: center;
-    width: 360px;
-    align-content: center;
-    border-radius: 10%;
+    text-align: left;
+    width: min(360px, calc(100% - 48px));
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
 }
 
 .loanBox p
 {
     color: lightgray;
-    font-family: monospace;
-    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin: 0;
+    padding: 12px 0;
+    border-bottom: 1px solid rgb(255 255 255 / 12%);
+    font-family: 'Fraunces', serif;
+    font-weight: normal;
+}
+
+.loanBox p strong
+{
+    color: white;
+    text-align: right;
+    font-weight: 600;
 }
 
 .loanBox h1
@@ -43,6 +74,107 @@
     color: skyblue;
     font-family: 'Fraunces', serif;
     font-weight: bolder;
+    margin: 0 0 16px;
+}
+.loanTable
+{
+    width: auto;
+    max-width: calc(100% - 32px);
+    margin: 20px auto;
+    border-collapse: collapse;
+    font-family: monospace;
+    background-color: #2e303a;
+    font-size: 0.9rem;
+    table-layout: auto;
+    border-radius: 15px;
+    overflow: hidden;
+}
+.loanTable th,
+.loanTable td
+{
+    padding: 8px;
+    border: 1px solid #555;
+    text-align: center;
+
+}
+.loanTable th
+{
+    color: skyblue;
+}
+.loanTable td
+{
+    color: lightgray;
+}
+.loanTable th:nth-child(3),
+.loanTable td:nth-child(3),
+.loanTable th:nth-child(4),
+.loanTable td:nth-child(4)
+{
+    white-space: nowrap;
+}
+.loanTable th:nth-child(3),
+.loanTable th:nth-child(4)
+{
+    white-space: normal;
+}
+.loanTable tbody tr:nth-child(even)
+{
+    background-color: #393c47;
+}
+.userInfoPanel
+{
+    width: min(100% - 32px, 520px);
+    box-sizing: border-box;
+    margin: 24px auto;
+    padding: 24px;
+    border: 1px solid #555;
+    border-radius: 12px;
+    background-color: #2e303a;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+}
+.userInfoPanel h2
+{
+    margin-top: 0;
+    color: skyblue;
+}
+.userInfoPanel p
+{
+    color: lightgray;
+}
+.userInfoForm
+{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 20px;
+}
+.userInfoForm label
+{
+    margin-top: 10px;
+    font-weight: bold;
+}
+.userInfoForm input
+{
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 12px;
+    border: 1px solid lightblue;
+    border-radius: 6px;
+    background-color: white;
+    color: #1a1a1a;
+    font: inherit;
+}
+.userInfoForm input:focus-visible
+{
+    outline: 3px solid lightblue;
+    outline-offset: 2px;
+}
+.userInfoForm button
+{
+    align-self: flex-start;
+    margin-top: 16px;
+    padding: 0 18px;
 }
 
 button{
@@ -57,19 +189,132 @@ button{
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s;
 }
+button:hover
+{
+    color: black;
+    background-color: lightgray;
+    font-weight: bolder;
+}
 
 .back
 {
     position: absolute;
     top: 15px;
-    left: 15px;
+    right: 15px;
     margin: 0;
 }
 .payment
 {
-    width: auto;
+    width: 100px;
     height: auto;
-    background-color: black;
-    color: white;
+    background-color: var(--accent);
+    color: black;
+    font-weight: normal;
     margin-top: 10px;
+}
+.paymentSuccess
+{
+    box-sizing: border-box;
+    width: min(360px, calc(100% - 48px));
+    margin: 25px auto;
+    padding: 24px;
+    border-radius: 16px;
+    background-color: #2e303a;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+}
+
+.paymentSuccess p
+{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin: 0;
+    padding: 12px 0;
+    border-bottom: 1px solid rgb(255 255 255 / 12%);
+    color: lightgray;
+    font-family: 'Fraunces', serif;
+    font-weight: normal;
+}
+
+.paymentSuccess p strong
+{
+    color: white;
+    text-align: right;
+    font-weight: 600;
+}
+
+.customer-payment
+{
+    width: min(100% - 32px, 520px);
+    margin: 16px auto;
+}
+
+.customer-payment label
+{
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.customer-payment-row
+{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.customer-payment-row input[type="number"]
+{
+    box-sizing: border-box;
+    min-width: 0;
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid #555;
+    border-radius: 8px;
+    background-color: #2e303a;
+    color: var(--text);
+    font: inherit;
+}
+
+.customer-payment-row input[type="number"]::-webkit-outer-spin-button,
+.customer-payment-row input[type="number"]::-webkit-inner-spin-button
+{
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.customer-payment-row input[type="number"]
+{
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.customer-payment-row .payment
+{
+    width: auto;
+    min-height: 42px;
+    margin: 0;
+    padding: 10px 14px;
+}
+
+.customer-payment-row .customer-minimum
+{
+    flex: 0 0 auto;
+    min-height: 42px;
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--text);
+    font-size: 0.8rem;
+}
+
+.customer-error
+{
+    width: min(100% - 32px, 520px);
+    margin: 10px auto;
+    color: #f87171;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
 }
