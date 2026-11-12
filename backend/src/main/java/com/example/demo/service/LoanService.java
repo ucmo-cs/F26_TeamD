@@ -34,6 +34,11 @@ public class LoanService {
         return loanRepository.findAll();
     }
 
+    // GET: Retrieve all loans for one customer
+    public List<Loan> getLoansByCustomerId(Integer customerId) {
+        return loanRepository.findByCustomer_CustomerId(customerId);
+    }
+
     // GET: Retrieve one loan by ID
     public Optional<Loan> getLoanById(Integer id) {
         return loanRepository.findById(id);
@@ -118,6 +123,48 @@ public class LoanService {
         loan.setCustomer(customer);
 
         // Save the loan in MySQL
+        return loanRepository.save(loan);
+    }
+
+    // POST: Apply a payment to a loan
+    // The backend subtracts the amount itself, so the client can't set an arbitrary balance.
+    // The minimum payment is checked on the frontend (CustomerPortal / LoanService.tsx).
+    public Loan makePayment(Integer id, BigDecimal amount) {
+
+        // Find the existing loan
+        Loan loan = loanRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Loan not found"
+                ));
+
+        // Payment must be a positive amount
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment amount must be greater than zero"
+            );
+        }
+
+        // Payments are in dollars and cents
+        if (amount.stripTrailingZeros().scale() > 2) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment amount can have at most 2 decimal places"
+            );
+        }
+
+        // Can't pay more than what is owed
+        if (amount.compareTo(loan.getRemainingBalance()) > 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment cannot be more than the remaining balance of $"
+                            + loan.getRemainingBalance()
+            );
+        }
+
+        // Subtract the payment and save the new balance in MySQL
+        loan.setRemainingBalance(loan.getRemainingBalance().subtract(amount));
         return loanRepository.save(loan);
     }
 

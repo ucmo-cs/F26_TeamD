@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 public class PaymentScheduleService {
@@ -62,6 +63,12 @@ public class PaymentScheduleService {
         }
 
         return schedule;
+    }
+
+    // GET: All payment schedules for one customer's loans
+    // Loans without a schedule are simply not in the list (no 404)
+    public List<PaymentSchedule> getSchedulesByCustomerId(Integer customerId) {
+        return paymentScheduleRepository.findByLoan_Customer_CustomerId(customerId);
     }
 
     // POST: Create a new payment schedule

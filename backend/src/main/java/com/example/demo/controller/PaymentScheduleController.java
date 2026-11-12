@@ -5,6 +5,8 @@ import com.example.demo.domain.PaymentSchedule;
 import com.example.demo.service.PaymentScheduleService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 // Handles HTTP requests for payment schedules
 @RestController
 @CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
@@ -26,6 +28,15 @@ public class PaymentScheduleController {
             @PathVariable Integer loanId) {
 
         return paymentScheduleService.getScheduleByLoanId(loanId);
+    }
+
+    // GET: All payment schedules for one customer's loans
+    // Example URL: /api/payment-schedules/customer/1
+    @GetMapping("/customer/{customerId}")
+    public List<PaymentSchedule> getSchedulesByCustomer(
+            @PathVariable Integer customerId) {
+
+        return paymentScheduleService.getSchedulesByCustomerId(customerId);
     }
 
     // POST: Create a new payment schedule

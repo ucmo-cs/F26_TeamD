@@ -1,5 +1,8 @@
 server:
   port: 8081
+  error:
+    # send ResponseStatusException messages (e.g. "Loan not found") to the frontend
+    include-message: always
 
 spring:
   application:

@@ -4,6 +4,8 @@ package com.example.demo.repository;
 import com.example.demo.domain.Loan;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 // Repository lets Spring Boot access the loan table
 // Loan = entity we're working with
 // Integer = data type of loan_id (primary key)
@@ -16,4 +18,7 @@ public interface LoanRepository extends JpaRepository<Loan, Integer> {
     // deleteById(id) -> Delete a loan
 
     // No SQL needed for these basic operations!
+
+    // Find every loan that belongs to one customer
+    List<Loan> findByCustomer_CustomerId(Integer customerId);
 }

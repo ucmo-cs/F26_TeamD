@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'react'
 import './CustomerPortal.css'
 import App from './App.tsx'
-import {getLoans} from "./LoanControler/LoanService.tsx";
+import {getLoansForCustomer} from "./LoanControler/LoanService.tsx";
 import type {Loan} from "./LoanControler/LoanService.tsx";
 import { calculateMinimumPayment} from "./LoanControler/LoanService.tsx"
 import { processPayment } from "./LoanControler/LoanService.tsx";
@@ -17,7 +17,7 @@ const CUSTOMER_API_URL = "http://localhost:8081/api/customers";
 
 
 function CustomerLanding({customerId}: {customerId: number}) {
-    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [customer, setCustomer] = useState<Customer | null>(null);
     const [loans, setLoans] = useState<Loan[]>([]);
     const [loanLoadError, setLoanLoadError] = useState("");
     const [customerLoadError, setCustomerLoadError] = useState("");
@@ -25,27 +25,31 @@ function CustomerLanding({customerId}: {customerId: number}) {
     const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
     const [showPortal, setShowPortal] = useState(false)
     const [showInfoChangePortal, setShowInfoChangePortal] = useState(false);
-    const customer = customers.find((account) => account.customerId === customerId);
+    // bump this to re-fetch loans (e.g. after a payment)
+    const [loanReloadKey, setLoanReloadKey] = useState(0);
 
     useEffect(() => {
-        fetch(CUSTOMER_API_URL)
+        fetch(`${CUSTOMER_API_URL}/${customerId}`)
             .then((response) => {
-                if (!response.ok) throw new Error("Could not load customers");
-                return response.json() as Promise<Customer[]>;
+                if (!response.ok) throw new Error("Could not load customer information");
+                return response.json() as Promise<Customer>;
             })
-            .then((data) => {
-                setCustomers(data);
-            })
+            .then(setCustomer)
             .catch((error: unknown) => {
-                setCustomerLoadError(error instanceof Error ? error.message : "Could not load customers");
+                setCustomerLoadError(error instanceof Error ? error.message : "Could not load customer information");
             });
+    }, [customerId]);
 
-        getLoans()
-            .then(setLoans)
+    useEffect(() => {
+        getLoansForCustomer(customerId)
+            .then((data) => {
+                setLoans(data);
+                setLoanLoadError("");
+            })
             .catch((error: unknown) => {
                 setLoanLoadError(error instanceof Error ? error.message : "Could not load loans");
             });
-    }, []);
+    }, [customerId, loanReloadKey]);
     // const [loanId, setLoanId] = useState("");
     // const [foundLoan, setFoundLoan] = useState<Loan | undefined>();
     //pre-made Loan[] set to display different methods
@@ -58,7 +62,10 @@ function CustomerLanding({customerId}: {customerId: number}) {
         return (
             <LoanPayment
                 loan={selectedLoan}
-                onBack={() => setSelectedLoan(null)}/>);
+                onBack={() => {
+                    setSelectedLoan(null);
+                    setLoanReloadKey((key) => key + 1); // show the saved balance
+                }}/>);
     }
     return (
         <main>
@@ -98,7 +105,7 @@ function CustomerLanding({customerId}: {customerId: number}) {
                             </tr>
                             </thead>
                             <tbody>
-                            {loans.filter((loan) => loan.customerId === customerId && loan.amountRemaining > 0).map((loan) => (
+                            {loans.filter((loan) => loan.amountRemaining > 0).map((loan) => (
                                 <tr key={loan.id}>
                                     <td>${loan.amount.toLocaleString()}</td>
                                     <td>{loan.interest}%</td>
@@ -172,15 +179,16 @@ function LoanPayment({ loan, onBack }: { loan: Loan; onBack: () => void }) {
     const [paymentResult, setPaymentResult] = useState<{ oldLoan: Loan; newLoan: Loan; paymentAmount: number; }
         | null>(null);
     const [paymentError, setPaymentError] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
     // handler for making a payment
-    function handleMakePayment() {
+    async function handleMakePayment() {
         // values for amount to pay and minimum that can be paid
         const amount = Number(paymentAmount);
 
-
+        setSubmitting(true);
         try {
-            const newLoan = processPayment(loan, amount);
+            const newLoan = await processPayment(loan, amount);
             setPaymentResult({oldLoan: loan, newLoan, paymentAmount: amount });
             setPaymentError("")
         } catch(error) {
@@ -188,6 +196,8 @@ function LoanPayment({ loan, onBack }: { loan: Loan; onBack: () => void }) {
             setPaymentError(
                 error instanceof Error ? error.message : "Payment Failed"
             );
+        } finally {
+            setSubmitting(false);
         }
     }
 
@@ -227,8 +237,8 @@ function LoanPayment({ loan, onBack }: { loan: Loan; onBack: () => void }) {
                         >
                             Use minimum
                         </button>
-                        <button type="button" className="payment" onClick={handleMakePayment}>
-                            Submit Payment
+                        <button type="button" className="payment" onClick={handleMakePayment} disabled={submitting}>
+                            {submitting ? "Processing..." : "Submit Payment"}
                         </button>
                     </div>
                 </div>

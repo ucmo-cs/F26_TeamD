@@ -31,6 +31,13 @@ public class LoanController {
         return loanService.getAllLoans();
     }
 
+    // GET: Retrieve all loans for one customer
+    // Example URL: /api/loans/customer/1
+    @GetMapping("/customer/{customerId}")
+    public List<Loan> getLoansByCustomer(@PathVariable Integer customerId) {
+        return loanService.getLoansByCustomerId(customerId);
+    }
+
     // GET: Retrieve one loan by ID
     @GetMapping("/{id}")
     public ResponseEntity<Loan> getLoanById(@PathVariable Integer id) {
@@ -47,6 +54,17 @@ public class LoanController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(savedLoan);
+    }
+
+    // POST: Make a payment on a loan
+    // Example URL: /api/loans/1/payments   body: {"amount": 500.00}
+    // Returns the loan with its new remaining balance
+    @PostMapping("/{id}/payments")
+    public Loan makePayment(
+            @PathVariable Integer id,
+            @RequestBody Map<String, BigDecimal> request) {
+
+        return loanService.makePayment(id, request.get("amount"));
     }
 
     // PUT: Update a loan's remaining balance

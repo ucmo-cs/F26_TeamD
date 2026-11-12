@@ -24,38 +24,45 @@ type ApiLoan = {
     loanTermMonths: number;
 };
 type ApiPaymentSchedule = {
+    loan: { loanId: number };
     frequency: string;
 };
 
-// export and return the loans to front-end
-export async function getLoans(): Promise<Loan[]> {
-    const response = await fetch(`${API_URL}/loans`);
-    if (!response.ok) throw new Error("Could not load loans");
+// convert a backend loan (+ its schedule, if any) into the front-end Loan shape
+function toLoan(loan: ApiLoan, schedule: ApiPaymentSchedule | undefined): Loan {
+    const frequency = schedule?.frequency.toLowerCase();
+    const paymentFrequency: PaymentFrequency =
+        frequency === "weekly" || frequency === "biweekly" || frequency === "monthly"
+            ? frequency
+            : "unscheduled";
 
-    const apiLoans: ApiLoan[] = await response.json();
+    return {
+        id: loan.loanId,
+        customerId: loan.customer.customerId,
+        amount: Number(loan.originalAmount),
+        amountRemaining: Number(loan.remainingBalance),
+        interest: Number(loan.interestRate) * 100,
+        dateCreated: loan.loanDate,
+        loanDurationYears: loan.loanTermMonths / 12,
+        paymentFrequency,
+    };
+}
 
-    return Promise.all(apiLoans.map(async (loan) => {
-        const scheduleResponse = await fetch(`${API_URL}/payment-schedules/loan/${loan.loanId}`);
-        const schedule = scheduleResponse.ok
-            ? await scheduleResponse.json() as ApiPaymentSchedule
-            : null;
-        const frequency = schedule?.frequency.toLowerCase();
-        const paymentFrequency: PaymentFrequency =
-            frequency === "weekly" || frequency === "biweekly" || frequency === "monthly"
-                ? frequency
-                : "unscheduled";
+// export and return one customer's loans to front-end
+// (two requests total: the customer's loans and the customer's payment schedules)
+export async function getLoansForCustomer(customerId: number): Promise<Loan[]> {
+    const [loanResponse, scheduleResponse] = await Promise.all([
+        fetch(`${API_URL}/loans/customer/${customerId}`),
+        fetch(`${API_URL}/payment-schedules/customer/${customerId}`),
+    ]);
+    if (!loanResponse.ok) throw new Error("Could not load loans");
+    if (!scheduleResponse.ok) throw new Error("Could not load payment schedules");
 
-        return {
-            id: loan.loanId,
-            customerId: loan.customer.customerId,
-            amount: Number(loan.originalAmount),
-            amountRemaining: Number(loan.remainingBalance),
-            interest: Number(loan.interestRate) * 100,
-            dateCreated: loan.loanDate,
-            loanDurationYears: loan.loanTermMonths / 12,
-            paymentFrequency,
-        };
-    }));
+    const apiLoans: ApiLoan[] = await loanResponse.json();
+    const schedules: ApiPaymentSchedule[] = await scheduleResponse.json();
+
+    return apiLoans.map((loan) =>
+        toLoan(loan, schedules.find((schedule) => schedule.loan.loanId === loan.loanId)));
 }
 
 
@@ -79,7 +86,27 @@ export function calculateMinimumPayment(loan: Loan): number {
 }
 
 // keep payment process out of front-end
-export function processPayment(loan: Loan, amount: number): Loan {
+// validates on the front-end first (including the minimum payment),
+// then sends the payment to the backend, which subtracts it and saves the new balance
+export async function processPayment(loan: Loan, amount: number): Promise<Loan> {
+    validatePayment(loan, amount);
+
+    const response = await fetch(`${API_URL}/loans/${loan.id}/payments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Math.round(amount * 100) / 100 }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => null) as { message?: string } | null;
+        throw new Error(error?.message || "Payment failed. Please try again.");
+    }
+
+    const updated: ApiLoan = await response.json();
+    return { ...loan, amountRemaining: Number(updated.remainingBalance) };
+}
+
+// throws an Error with a user-facing message if the payment isn't allowed
+function validatePayment(loan: Loan, amount: number): void {
     const minimum = calculateMinimumPayment(loan);
 
     if (loan.amountRemaining > loan.amount) {
@@ -97,10 +124,6 @@ export function processPayment(loan: Loan, amount: number): Loan {
         amount > loan.amountRemaining) {
         throw new Error("Payment must be between the minimum and remaining balance");
     }
-
-    return {
-        ...loan, amountRemaining: loan.amountRemaining - amount,
-    };
 }
 
 
@@ -158,8 +181,4 @@ export function formatLoanDate(date: string) {
 function validLoan(l : Loan): boolean {
     return validRemainingBalance(l) && validLoanAmount(l) && validLoanDuration(l)
         && validInterest(l) && isLoanPayable(l)
-}
-
-export async function findLoanById(id: number): Promise<Loan | undefined> {
-    return (await getLoans()).find((loan) => loan.id === id);
 }

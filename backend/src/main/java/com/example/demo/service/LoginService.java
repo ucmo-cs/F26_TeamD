@@ -8,6 +8,8 @@ import com.example.demo.repository.CustomerRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class LoginService {
 
@@ -54,6 +56,24 @@ public class LoginService {
         }
 
         return customer.getCustomerId();
+    }
+
+    // Used by /api/auth/login: returns the matching admin, or empty
+    public Optional<Admin> authenticateAdmin(String username, String password) {
+        if (username == null || password == null) {
+            return Optional.empty();
+        }
+        return adminRepository.findByUsername(username)
+                .filter(admin -> password.equals(admin.getPassword()));
+    }
+
+    // Used by /api/auth/login: returns the matching customer, or empty
+    public Optional<Customer> authenticateCustomer(String email, String password) {
+        if (email == null || password == null) {
+            return Optional.empty();
+        }
+        return customerRepository.findByEmail(email)
+                .filter(customer -> passwordEncoder.matches(password, customer.getPassword()));
     }
 
 }
