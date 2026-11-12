@@ -1,82 +1,169 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import './CustomerPortal.css'
-import App from './App'
+import App from './App.tsx'
+import {getLoans} from "./LoanControler/LoanService.tsx";
+import type {Loan} from "./LoanControler/LoanService.tsx";
+import { calculateMinimumPayment} from "./LoanControler/LoanService.tsx"
+import { processPayment } from "./LoanControler/LoanService.tsx";
+import { formatLoanDate} from "./LoanControler/LoanService.tsx";
 
-type Loan = {
-    id: number;
-    amount: number;
-    interest: number;
-    amountRemaining: number;
-    dateCreated: string;
-    loanDurationYears: number;
+type Customer = {
+    customerId: number;
+    name: string;
+    email: string;
+    phone: string | null;
 };
+const CUSTOMER_API_URL = "http://localhost:8081/api/customers";
 
-function CustomerLanding() {
-    // button declare to show user info
-    const [showUserInfo, setShowUserInfo] = useState(false)
-    // portal for logging out
-    const [showPortal, setShowPortal] = useState(false)
-    //placeholder for selected loan by usre
+
+function CustomerLanding({customerId}: {customerId: number}) {
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [loans, setLoans] = useState<Loan[]>([]);
+    const [loanLoadError, setLoanLoadError] = useState("");
+    const [customerLoadError, setCustomerLoadError] = useState("");
+    const [showUserInfo, setShowUserInfo] = useState(true)
     const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+    const [showPortal, setShowPortal] = useState(false)
+    const [showInfoChangePortal, setShowInfoChangePortal] = useState(false);
+    const customer = customers.find((account) => account.customerId === customerId);
+
+    useEffect(() => {
+        fetch(CUSTOMER_API_URL)
+            .then((response) => {
+                if (!response.ok) throw new Error("Could not load customers");
+                return response.json() as Promise<Customer[]>;
+            })
+            .then((data) => {
+                setCustomers(data);
+            })
+            .catch((error: unknown) => {
+                setCustomerLoadError(error instanceof Error ? error.message : "Could not load customers");
+            });
+
+        getLoans()
+            .then(setLoans)
+            .catch((error: unknown) => {
+                setLoanLoadError(error instanceof Error ? error.message : "Could not load loans");
+            });
+    }, []);
+    // const [loanId, setLoanId] = useState("");
+    // const [foundLoan, setFoundLoan] = useState<Loan | undefined>();
     //pre-made Loan[] set to display different methods
-    const loans: Loan[] = [
-        {id : 1, amount: 15000, interest: 12, amountRemaining: 12000, dateCreated: "2026-08-22", loanDurationYears: 3},
-        {id : 2, amount: 20000, interest: 4, amountRemaining: 15000, dateCreated: "2023-05-13", loanDurationYears: 5}
-    ];
 
     // logout handler
     if (showPortal) {
         return <App />
     }
-    // loan selector handler
     if (selectedLoan) {
-        return <LoanPayment loan={selectedLoan} onBack={() => setSelectedLoan(null)} />;
+        return (
+            <LoanPayment
+                loan={selectedLoan}
+                onBack={() => setSelectedLoan(null)}/>);
     }
-
-
     return (
         <main>
-            <div className="page">
-            <h1>Welcome User</h1>
-
-            {/*Button for viewing user info*/}
-            <button
-                type='button'
-                className='button'
-                onClick={() => setShowUserInfo(!showUserInfo)}>
-                {showUserInfo ? "Hide User Information" : "View User Information"}
-            </button>
+            <div className="page customerPortalPage">
+                {/*welcome message for selected customer*/}
+                <p className="customerName">Welcome {customer?.name ?? "Customer"}</p>
 
 
-            {/*Information hidden under button*/}
-            {showUserInfo && (
-                <section>
-                    <h2>User Information</h2>
-                    <p>Name: Example</p>
-                    <p>Email: user@Example.com</p>
 
-                    {/*Loan Examples*/}
-                    {loans.map((loan) => (
-                        <LoanInfo
-                            key={loan.id}
-                            loan={loan}
-                            onMakePayment={() => setSelectedLoan(loan)}
-                        />
-                        ))}
-                </section>
-            )}
+                {/*Show and hide the customer's loans*/}
+                <button
+                    type='button'
+                    className='button'
+                    onClick={() => setShowUserInfo(!showUserInfo)}>
+                    {showUserInfo ? "Hide Loans" : "Show Loans"}
+                </button>
 
-            {/*logout button*/}
-            <button
-                type='button'
-                className = 'button back'
-                onClick={() => setShowPortal(true)}>LOG OUT
-            </button>
+
+
+                {/*Information hidden under button*/}
+                {showUserInfo && (
+                    <section>
+
+                        {customerLoadError && <p role="alert">{customerLoadError}</p>}
+                        {loanLoadError && <p role="alert">{loanLoadError}</p>}
+
+                        <table className="loanTable">
+                            <thead>
+                            <tr>
+                                <th>Loan Amount</th>
+                                <th>Interest</th>
+                                <th>Outstanding<br />Balance</th>
+                                <th>Duration<br />(years)</th>
+                                <th>Payment Frequency</th>
+                                <th>Date Created</th>
+                                <th>Action</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {loans.filter((loan) => loan.customerId === customerId && loan.amountRemaining > 0).map((loan) => (
+                                <tr key={loan.id}>
+                                    <td>${loan.amount.toLocaleString()}</td>
+                                    <td>{loan.interest}%</td>
+                                    <td>${loan.amountRemaining.toLocaleString()}</td>
+                                    <td>{loan.loanDurationYears}</td>
+                                    <td>{loan.paymentFrequency}</td>
+                                    <td>{formatLoanDate(loan.dateCreated)}</td>
+                                    <td>
+                                        <button className="payment" onClick={() => setSelectedLoan(loan)}>
+                                            Make a Payment
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+
+                    </section>
+                )}
+
+
+                {/*<label htmlFor="loanId">Find loan by ID:</label>*/}
+                {/*<input*/}
+                {/*    id="loanId"*/}
+                {/*    type="number"*/}
+                {/*    value={loanId}*/}
+                {/*    onChange={event => {*/}
+                {/*        const value = event.currentTarget.value;*/}
+                {/*        setLoanId(value);*/}
+                {/*        setFoundLoan(value ? findLoanById(Number(value)) : undefined);*/}
+                {/*    }}*/}
+                {/*/>*/}
+                {/*{loanId && !foundLoan && <p role="status">No loan found with that ID.</p>}*/}
+                {/*{foundLoan && <LoanInfo loan={foundLoan} onMakePayment={() => setSelectedLoan(foundLoan)} />}*/}
+
+
+                {/*logout button*/}
+                <button
+                    type='button'
+                    className = 'button back'
+                    onClick={() => setShowPortal(true)}>Return To Main Menu
+                </button>
+                {/*User Information show/hide*/}
+                <button
+                    type='button'
+                    className='button'
+                    onClick={() => setShowInfoChangePortal(!showInfoChangePortal)}>
+                    {showInfoChangePortal
+                        ? "Hide User Info"
+                        : "Show User Info"}
+                </button>
+                {customer && showInfoChangePortal && (
+                    <section className="userInfoPanel">
+                        <h2>Customer Information</h2>
+                        <p>Customer ID: {customer.customerId}</p>
+                        <p>Name: {customer.name}</p>
+                        <p>Email: {customer.email}</p>
+                        <p>Phone: {customer.phone ?? "Not provided"}</p>
+                    </section>
+                )}
             </div>
         </main>
-
     )
 }
+
 
 
 //display page to user displaying selected loan information
@@ -84,29 +171,24 @@ function LoanPayment({ loan, onBack }: { loan: Loan; onBack: () => void }) {
     const [paymentAmount, setPaymentAmount] = useState("");
     const [paymentResult, setPaymentResult] = useState<{ oldLoan: Loan; newLoan: Loan; paymentAmount: number; }
         | null>(null);
+    const [paymentError, setPaymentError] = useState("");
 
     // handler for making a payment
     function handleMakePayment() {
         // values for amount to pay and minimum that can be paid
         const amount = Number(paymentAmount);
-        const minimum = calculateMinimumPayment(loan);
 
 
-        if (
-            !Number.isFinite(amount) ||
-            amount < minimum ||
-            amount > loan.amountRemaining
-        ) {
-            return;
+        try {
+            const newLoan = processPayment(loan, amount);
+            setPaymentResult({oldLoan: loan, newLoan, paymentAmount: amount });
+            setPaymentError("")
+        } catch(error) {
+            setPaymentResult(null);
+            setPaymentError(
+                error instanceof Error ? error.message : "Payment Failed"
+            );
         }
-
-        const oldLoan = { ...loan };
-        const newLoan = {
-            ...loan,
-            amountRemaining: loan.amountRemaining - amount,
-        };
-
-        setPaymentResult({ oldLoan, newLoan, paymentAmount: amount });
     }
 
     if (paymentResult) {
@@ -119,65 +201,60 @@ function LoanPayment({ loan, onBack }: { loan: Loan; onBack: () => void }) {
         );
     }
 
+    // page before making a payment
     return (
         <main>
             <div className='page loanPage'>
-            {/*Existing loan details*/}
+                {/*Existing loan details*/}
                 <LoanInfo loan = {loan} />
-                <label htmlFor="paymentAmount">Payment amount:</label>
-                <input
-                    id="paymentAmount"
-                    type="number"
-                    min= {calculateMinimumPayment(loan)}
-                    max = {loan.amountRemaining}
-                    step = "0.01"
-                    value = {paymentAmount}
-                    onChange = {(event) => setPaymentAmount(event.currentTarget.value)}
-            />
-                <button type="button" onClick={handleMakePayment}>
-                    Submit Payment
-                </button>
+                <div className="customer-payment">
+                    <label htmlFor="paymentAmount">Make a payment</label>
+                    <div className="customer-payment-row">
+                        <input
+                            id="paymentAmount"
+                            type="number"
+                            min={calculateMinimumPayment(loan)}
+                            max={loan.amountRemaining}
+                            step="0.01"
+                            value={paymentAmount}
+                            placeholder={`Min $${calculateMinimumPayment(loan).toFixed(2)}`}
+                            onChange={(event) => setPaymentAmount(event.currentTarget.value)}
+                        />
+                        <button
+                            type="button"
+                            className="customer-minimum"
+                            onClick={() => setPaymentAmount(calculateMinimumPayment(loan).toFixed(2))}
+                        >
+                            Use minimum
+                        </button>
+                        <button type="button" className="payment" onClick={handleMakePayment}>
+                            Submit Payment
+                        </button>
+                    </div>
+                </div>
+
+                {paymentError && <p role="alert" className="customer-error">{paymentError}</p>}
 
                 <button
-                className='button back'
-                onClick={onBack}
+                    className='button back'
+                    onClick={onBack}
                 >Back</button>
             </div>
         </main>
     );
 }
 
-// returns minimum payment based off of amountReamining and interest
-// uses Standard Amortization Formula
-function calculateMinimumPayment(loan: Loan): number {
-    //get percentile of monthly interest and amount of months to pay
-    const monthlyRate = loan.interest / 100 / 12;
-    const numberOfPayments = loan.loanDurationYears * 12
-
-    if (numberOfPayments <= 0) return 0;
-
-    if (monthlyRate === 0) {
-        return loan.amountRemaining / numberOfPayments;
-    }
-    const factor = (1 + monthlyRate) ** numberOfPayments;
-
-    //return value at 2 decimal point value
-    return Math.round((loan.amountRemaining * monthlyRate * factor) / (factor - 1) * 100) / 100;
-}
-
-
-
 //handler for a succesful payment
 function PaymentSuccess({oldLoan, newLoan, paymentAmount, onBack} :
                         { oldLoan: Loan; newLoan: Loan; paymentAmount: number; onBack: () => void; }) {
     return(
         <main>
-            <div className="page">
+            <h1>Payment Succesful!</h1>
+            <div className="paymentSuccess">
                 {/*display payment information for old and new loan*/}
-                <h1>Payment Succesful!</h1>
-                <p>Payment: ${paymentAmount.toFixed(2)}</p>
-                <p>Old amount remaining: ${oldLoan.amountRemaining.toFixed(2)}</p>
-                <p>New amount remaining: ${newLoan.amountRemaining.toFixed(2)}</p>
+                <p><span>Payment made</span><strong>${paymentAmount.toFixed(2)}</strong></p>
+                <p><span>Previous balance</span><strong>${oldLoan.amountRemaining.toFixed(2)}</strong></p>
+                <p><span>New balance</span><strong>${newLoan.amountRemaining.toFixed(2)}</strong></p>
                 {/*button -> CustomerLanding()*/}
                 <button
                     className='button'
@@ -197,12 +274,13 @@ function LoanInfo({loan, onMakePayment,}: { loan: Loan; onMakePayment?: () => vo
 
         // returns a box to be displayed
         <div className="loanBox">
-            <h1>Loan {loan.id}</h1>
-            <p>Loan Amount: ${loan.amount.toLocaleString()}</p>
-            <p>Interest: {loan.interest}%</p>
-            <p>Amount Remaining: ${loan.amountRemaining.toLocaleString()}</p>
-            <p>Loan Duration: {loan.loanDurationYears}</p>
-            <p>Date loan was created: {loan.dateCreated}</p>
+            <h1>Outstanding Loan</h1>
+            <p><span>Loan amount</span><strong>${loan.amount.toLocaleString()}</strong></p>
+            <p><span>Interest rate</span><strong>{loan.interest}%</strong></p>
+            <p><span>Amount remaining</span><strong>${loan.amountRemaining.toLocaleString()}</strong></p>
+            <p><span>Loan duration</span><strong>{loan.loanDurationYears} years</strong></p>
+            <p><span>Payment frequency</span><strong>{loan.paymentFrequency}</strong></p>
+            <p><span>Opened</span><strong>{formatLoanDate(loan.dateCreated)}</strong></p>
 
             {/*Payment button for selected loan*/}
             {onMakePayment && (
@@ -213,5 +291,6 @@ function LoanInfo({loan, onMakePayment,}: { loan: Loan; onMakePayment?: () => vo
         </div>
     );
 }
+
 
 export default CustomerLanding

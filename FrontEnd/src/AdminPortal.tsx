@@ -2,7 +2,7 @@ import {useState} from "react"
 import "./AdminPortal.css"
 import App from "./App"
 
-function AdminLanding() {
+function AdminLanding({adminName}: {adminName: string}) {
     const [showHomePage, setShowHomePage] = useState(false)
 
     if (showHomePage){
@@ -12,7 +12,7 @@ function AdminLanding() {
     return (
         <main>
             {/*place to put the admins name (x)*/}
-            <h1>Hello Admin (x)</h1>
+            <h1>Hello {adminName}</h1>
             <button type="button"
                     onClick={() => setShowHomePage(true)}
             >

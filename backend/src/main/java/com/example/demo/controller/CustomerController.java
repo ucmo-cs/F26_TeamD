@@ -12,6 +12,7 @@ import java.util.List;
 
 // Tells Spring Boot this class handles API requests
 @RestController
+@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 
 // All customer endpoints start with /api/customers
 @RequestMapping("/api/customers")
