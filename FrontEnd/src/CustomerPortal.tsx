@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react'
 import './CustomerPortal.css'
+import ChangeCustomerInfoPortal from './ChangeCustomerInfoPortal'
 import App from './App.tsx'
 import {getLoans} from "./LoanControler/LoanService.tsx";
 import type {Loan} from "./LoanControler/LoanService.tsx";
@@ -53,6 +54,13 @@ function CustomerLanding({customerId}: {customerId: number}) {
     // logout handler
     if (showPortal) {
         return <App />
+    }
+    if(showInfoChangePortal){
+        return (
+            <ChangeCustomerInfoPortal
+            onBack={() => setShowInfoChangePortal(false)}
+            />
+        )
     }
     if (selectedLoan) {
         return (
@@ -145,10 +153,9 @@ function CustomerLanding({customerId}: {customerId: number}) {
                 <button
                     type='button'
                     className='button'
-                    onClick={() => setShowInfoChangePortal(!showInfoChangePortal)}>
-                    {showInfoChangePortal
-                        ? "Hide User Info"
-                        : "Show User Info"}
+                    onClick={() => setShowInfoChangePortal(true)}
+                    >
+                        Change User Information
                 </button>
                 {customer && showInfoChangePortal && (
                     <section className="userInfoPanel">
