@@ -20,7 +20,7 @@ spring:
     show-sql: true
 
 mailtrap:
-  api-token: ${MAILTRAP_API_TOKEN}
+  api-token: ${MAILTRAP_API_TOKEN:}
   inbox-id: 5009020
   sandbox: true
   from-email: hello@demomailtrap.co

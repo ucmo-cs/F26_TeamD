@@ -1,0 +1,21 @@
+.adminStatus
+{
+    color: lightgray;
+    text-align: center;
+    margin: 20px auto;
+}
+
+.adminNewLoan
+{
+    padding: 0 24px;
+}
+
+.adminFormError
+{
+    color: #f87171;
+}
+
+.customer-info-form input[type="date"]
+{
+    color-scheme: dark;
+}
