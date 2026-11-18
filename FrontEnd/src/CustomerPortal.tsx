@@ -7,6 +7,7 @@ import type {Loan} from "./LoanControler/LoanService.tsx";
 import { calculateMinimumPayment} from "./LoanControler/LoanService.tsx"
 import { processPayment } from "./LoanControler/LoanService.tsx";
 import { formatLoanDate} from "./LoanControler/LoanService.tsx";
+import { formatPaymentFrequency } from "./LoanControler/LoanService.tsx";
 
 type Customer = {
     customerId: number;
@@ -119,7 +120,7 @@ function CustomerLanding({customerId}: {customerId: number}) {
                                     <td>{loan.interest}%</td>
                                     <td>${loan.amountRemaining.toLocaleString()}</td>
                                     <td>{loan.loanDurationYears}</td>
-                                    <td>{loan.paymentFrequency}</td>
+                                    <td>{formatPaymentFrequency(loan.paymentFrequency)}</td>
                                     <td>{formatLoanDate(loan.dateCreated)}</td>
                                     <td>
                                         <button className="payment" onClick={() => setSelectedLoan(loan)}>
@@ -296,7 +297,7 @@ function LoanInfo({loan, onMakePayment,}: { loan: Loan; onMakePayment?: () => vo
             <p><span>Interest rate</span><strong>{loan.interest}%</strong></p>
             <p><span>Amount remaining</span><strong>${loan.amountRemaining.toLocaleString()}</strong></p>
             <p><span>Loan duration</span><strong>{loan.loanDurationYears} years</strong></p>
-            <p><span>Payment frequency</span><strong>{loan.paymentFrequency}</strong></p>
+            <p><span>Payment frequency</span><strong>{formatPaymentFrequency(loan.paymentFrequency)}</strong></p>
             <p><span>Opened</span><strong>{formatLoanDate(loan.dateCreated)}</strong></p>
 
             {/*Payment button for selected loan*/}

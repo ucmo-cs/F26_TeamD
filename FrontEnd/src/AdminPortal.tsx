@@ -17,6 +17,11 @@ type ApiUnpaidLoan = {
     loanTermMonths: number;
 };
 
+type ApiSchedule = {
+    loan: { loanId: number };
+    frequency: string;
+};
+
 // front-end shape used by the table
 type UnpaidLoan = {
     id: number;
@@ -26,10 +31,18 @@ type UnpaidLoan = {
     interest: number;
     amountRemaining: number;
     loanDurationYears: number;
+    paymentFrequency: string;
     dateCreated: string;
 };
 
-function toUnpaidLoan(loan: ApiUnpaidLoan): UnpaidLoan {
+type ExistingCustomer = {
+    customerId: number;
+    name: string;
+    email: string;
+};
+
+function toUnpaidLoan(loan: ApiUnpaidLoan, schedule?: ApiSchedule): UnpaidLoan {
+    const frequency = schedule?.frequency.toUpperCase();
     return {
         id: loan.loanId,
         customerName: loan.customer.name,
@@ -38,6 +51,9 @@ function toUnpaidLoan(loan: ApiUnpaidLoan): UnpaidLoan {
         interest: Number(loan.interestRate) * 100,
         amountRemaining: Number(loan.remainingBalance),
         loanDurationYears: loan.loanTermMonths / 12,
+        paymentFrequency: frequency === "WEEKLY" ? "Weekly"
+            : frequency === "BIWEEKLY" ? "Bi-weekly"
+                : frequency === "MONTHLY" ? "Monthly" : "Unscheduled",
         dateCreated: loan.loanDate,
     };
 }
@@ -46,7 +62,17 @@ async function getUnpaidLoans(): Promise<UnpaidLoan[]> {
     const response = await fetch(`${ADMIN_API_URL}/unpaid-loans`);
     if (!response.ok) throw new Error("Could not load unpaid loans");
     const loans: ApiUnpaidLoan[] = await response.json();
-    return loans.map(toUnpaidLoan);
+    const customerIds = [...new Set(loans.map((loan) => loan.customer.customerId))];
+    const schedulesByCustomer = await Promise.all(customerIds.map(async (customerId) => {
+        const scheduleResponse = await fetch(`http://localhost:8081/api/payment-schedules/customer/${customerId}`);
+        if (!scheduleResponse.ok) throw new Error("Could not load payment frequencies");
+        return await scheduleResponse.json() as ApiSchedule[];
+    }));
+    const schedules = schedulesByCustomer.flat();
+    return loans.map((loan) => toUnpaidLoan(
+        loan,
+        schedules.find((schedule) => schedule.loan.loanId === loan.loanId),
+    ));
 }
 
 function AdminLanding({adminName}: {adminName: string}) {
@@ -115,9 +141,10 @@ function AdminLanding({adminName}: {adminName: string}) {
                                 <th>Customer</th>
                                 <th>Email</th>
                                 <th>Loan Amount</th>
-                                <th>Interest</th>
                                 <th>Outstanding<br />Balance</th>
+                                <th>Interest</th>
                                 <th>Duration<br />(years)</th>
+                                <th>Payment <br /> Frequency</th>
                                 <th>Date Created</th>
                             </tr>
                             </thead>
@@ -127,9 +154,10 @@ function AdminLanding({adminName}: {adminName: string}) {
                                     <td>{loan.customerName}</td>
                                     <td>{loan.customerEmail}</td>
                                     <td>${loan.amount.toLocaleString()}</td>
-                                    <td>{loan.interest}%</td>
                                     <td>${loan.amountRemaining.toLocaleString()}</td>
+                                    <td>{loan.interest}%</td>
                                     <td>{loan.loanDurationYears}</td>
+                                    <td>{loan.paymentFrequency}</td>
                                     <td>{formatLoanDate(loan.dateCreated)}</td>
                                 </tr>
                             ))}
@@ -161,6 +189,10 @@ function todayIso(): string {
 // Form for POST /api/admin/create-loan: creates a new customer and their first loan.
 // The backend generates the customer's temporary password and emails it to them.
 function NewLoanForm({onBack, onCreated}: { onBack: () => void; onCreated: () => void }) {
+    const [customerMode, setCustomerMode] = useState<"new" | "existing">("new")
+    const [customers, setCustomers] = useState<ExistingCustomer[]>([])
+    const [customerLoadError, setCustomerLoadError] = useState("")
+    const [customerId, setCustomerId] = useState("")
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
     const [phone, setPhone] = useState("")
@@ -170,6 +202,21 @@ function NewLoanForm({onBack, onCreated}: { onBack: () => void; onCreated: () =>
     const [loanDate, setLoanDate] = useState(todayIso())
     const [error, setError] = useState("")
     const [submitting, setSubmitting] = useState(false)
+
+    useEffect(() => {
+        fetch(`${ADMIN_API_URL}/customers`)
+            .then(async (response) => {
+                if (!response.ok) throw new Error("Could not load customers")
+                return response.json() as Promise<ExistingCustomer[]>
+            })
+            .then((data) => {
+                setCustomers(data)
+                setCustomerLoadError("")
+            })
+            .catch((loadError: unknown) => {
+                setCustomerLoadError(loadError instanceof Error ? loadError.message : "Could not load customers")
+            })
+    }, [])
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
@@ -194,23 +241,28 @@ function NewLoanForm({onBack, onCreated}: { onBack: () => void; onCreated: () =>
 
         setSubmitting(true)
         try {
-            const response = await fetch(`${ADMIN_API_URL}/create-loan`, {
+            const loan = {
+                loanDate,
+                originalAmount: Math.round(originalAmount * 100) / 100,
+                remainingBalance: Math.round(originalAmount * 100) / 100,
+                interestRate,
+                loanTermMonths,
+            }
+            const isNewCustomer = customerMode === "new"
+            if (!isNewCustomer && !customerId) {
+                setError("Select a customer first")
+                return
+            }
+
+            const response = await fetch(isNewCustomer ? `${ADMIN_API_URL}/create-loan` : "http://localhost:8081/api/loans", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    customer: {
-                        name: name.trim(),
-                        email: email.trim(),
-                        phone: phone.trim() || null,
-                    },
-                    loan: {
-                        loanDate,
-                        originalAmount: Math.round(originalAmount * 100) / 100,
-                        // a brand-new loan has nothing paid yet
-                        remainingBalance: Math.round(originalAmount * 100) / 100,
-                        interestRate,
-                        loanTermMonths,
-                    },
+                body: JSON.stringify(isNewCustomer ? {
+                    customer: { name: name.trim(), email: email.trim(), phone: phone.trim() || null },
+                    loan,
+                } : {
+                    customer: { customerId: Number(customerId) },
+                    ...loan,
                 }),
             })
             if (!response.ok) {
@@ -231,21 +283,40 @@ function NewLoanForm({onBack, onCreated}: { onBack: () => void; onCreated: () =>
                 <section className="customer-info-card">
                     <h1>New Loan</h1>
                     <p className="customer-info-intro">
-                        Create a customer and their loan. Login details are emailed to the customer.
+                        Create a loan for a new or existing customer.
                     </p>
 
                     <form className="customer-info-form" onSubmit={handleSubmit}>
-                        <label htmlFor="newName">Customer name</label>
-                        <input id="newName" type="text" value={name} required
-                               onChange={(event) => setName(event.currentTarget.value)} />
+                        <label htmlFor="customerMode">Customer</label>
+                        <select id="customerMode" value={customerMode}
+                                onChange={(event) => setCustomerMode(event.currentTarget.value as "new" | "existing")}>
+                            <option value="new">Create a new customer</option>
+                            <option value="existing">Select an existing customer</option>
+                        </select>
 
-                        <label htmlFor="newEmail">Email</label>
-                        <input id="newEmail" type="email" value={email} required
-                               onChange={(event) => setEmail(event.currentTarget.value)} />
-
-                        <label htmlFor="newPhone">Phone (optional)</label>
-                        <input id="newPhone" type="tel" value={phone}
-                               onChange={(event) => setPhone(event.currentTarget.value)} />
+                        {customerMode === "new" ? <>
+                            <label htmlFor="newName">Customer name</label>
+                            <input id="newName" type="text" value={name} required
+                                   onChange={(event) => setName(event.currentTarget.value)} />
+                            <label htmlFor="newEmail">Email</label>
+                            <input id="newEmail" type="email" value={email} required
+                                   onChange={(event) => setEmail(event.currentTarget.value)} />
+                            <label htmlFor="newPhone">Phone (optional)</label>
+                            <input id="newPhone" type="tel" value={phone}
+                                   onChange={(event) => setPhone(event.currentTarget.value)} />
+                        </> : <>
+                            <label htmlFor="existingCustomer">Existing customer</label>
+                            <select id="existingCustomer" value={customerId} required
+                                    onChange={(event) => setCustomerId(event.currentTarget.value)}>
+                                <option value="">Select a customer</option>
+                                {customers.map((customer) => (
+                                    <option key={customer.customerId} value={customer.customerId}>
+                                        {customer.name} ({customer.email})
+                                    </option>
+                                ))}
+                            </select>
+                            {customerLoadError && <p role="alert" className="customer-info-status adminFormError">{customerLoadError}</p>}
+                        </>}
 
                         <label htmlFor="newAmount">Loan amount ($)</label>
                         <input id="newAmount" type="number" min="0.01" step="0.01" value={amount} required

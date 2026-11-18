@@ -380,7 +380,8 @@ button:hover
     font-weight: 600;
 }
 
-.customer-info-form input{ 
+.customer-info-form input,
+.customer-info-form select{
     box-sizing: border-box;
     width: 100%;
     min-height: 46px;

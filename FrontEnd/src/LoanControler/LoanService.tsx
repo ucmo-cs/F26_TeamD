@@ -1,7 +1,16 @@
 // Service file for CustomerPortal.tsx
 
 
-type PaymentFrequency = "weekly" | "biweekly" | "monthly" | "unscheduled";
+export type PaymentFrequency = "weekly" | "biweekly" | "monthly" | "unscheduled";
+export function formatPaymentFrequency(frequency: PaymentFrequency): string {
+    switch (frequency) {
+        case "weekly": return "Weekly";
+        case "biweekly": return "Bi-weekly";
+        case "monthly": return "Monthly";
+        default: return "Unscheduled";
+    }
+}
+
 export type Loan = {
     id: number;
     customerId: number;
