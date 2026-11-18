@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class CustomerService {
@@ -16,6 +17,17 @@ public class CustomerService {
     // Allows us to access the customers table in MySQL
     private final CustomerRepository customerRepository;
 
+    private static final Pattern CUSTOMER_USERNAME =
+            Pattern.compile("[A-Za-z][A-Za-z0-9_]{4,19}");
+
+    private void validateCustomerName(String name) {
+        if (!CUSTOMER_USERNAME.matcher(name).matches()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Username must be 5-20 characters, start with a letter, and contain only letters, numbers & underscores"
+            );
+        }
+    }
     // Used to securely hash passwords before saving them
     private final BCryptPasswordEncoder passwordEncoder =
             new BCryptPasswordEncoder();
@@ -36,6 +48,7 @@ public class CustomerService {
                     "Customer name is required"
             );
         }
+        validateCustomerName(customer.getName());
 
         // Make sure the customer has an email
         if (customer.getEmail() == null ||
@@ -111,6 +124,7 @@ public class CustomerService {
                     "Customer name is required"
             );
         }
+        validateCustomerName(updatedCustomer.getName());
 
         // Make sure the updated email is not empty
         if (updatedCustomer.getEmail() == null ||
