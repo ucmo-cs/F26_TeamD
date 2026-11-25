@@ -2,7 +2,13 @@ import {useEffect, useState, type FormEvent} from "react"
 import "./CustomerPortal.css"
 import "./AdminPortal.css"
 import App from "./App"
-import {formatLoanDate} from "./LoanControler/LoanService.tsx";
+import {
+    calculateMinimumPayment,
+    formatLoanDate,
+    processPayment,
+    type Loan,
+    type PaymentFrequency,
+} from "./LoanControler/LoanService.tsx";
 
 const ADMIN_API_URL = "http://localhost:8081/api/admin";
 
@@ -25,6 +31,7 @@ type ApiSchedule = {
 // front-end shape used by the table
 type UnpaidLoan = {
     id: number;
+    customerId: number;
     customerName: string;
     customerEmail: string;
     amount: number;
@@ -45,6 +52,7 @@ function toUnpaidLoan(loan: ApiUnpaidLoan, schedule?: ApiSchedule): UnpaidLoan {
     const frequency = schedule?.frequency.toUpperCase();
     return {
         id: loan.loanId,
+        customerId: loan.customer.customerId,
         customerName: loan.customer.name,
         customerEmail: loan.customer.email,
         amount: Number(loan.originalAmount),
@@ -55,6 +63,23 @@ function toUnpaidLoan(loan: ApiUnpaidLoan, schedule?: ApiSchedule): UnpaidLoan {
             : frequency === "BIWEEKLY" ? "Bi-weekly"
                 : frequency === "MONTHLY" ? "Monthly" : "Unscheduled",
         dateCreated: loan.loanDate,
+    };
+}
+
+// convert a table row into the Loan shape the shared payment functions expect
+function toPaymentLoan(loan: UnpaidLoan): Loan {
+    const frequency: PaymentFrequency = loan.paymentFrequency === "Weekly" ? "weekly"
+        : loan.paymentFrequency === "Bi-weekly" ? "biweekly"
+            : loan.paymentFrequency === "Monthly" ? "monthly" : "unscheduled";
+    return {
+        id: loan.id,
+        customerId: loan.customerId,
+        amount: loan.amount,
+        interest: loan.interest,
+        amountRemaining: loan.amountRemaining,
+        dateCreated: loan.dateCreated,
+        loanDurationYears: loan.loanDurationYears,
+        paymentFrequency: frequency,
     };
 }
 
@@ -81,6 +106,8 @@ function AdminLanding({adminName}: {adminName: string}) {
     const [loading, setLoading] = useState(true)
     const [loanLoadError, setLoanLoadError] = useState("")
     const [showNewLoanForm, setShowNewLoanForm] = useState(false)
+    // the loan the admin is making a payment on (null = show the table)
+    const [payingLoan, setPayingLoan] = useState<UnpaidLoan | null>(null)
     // bump this to re-fetch loans (e.g. after creating a loan)
     const [loanReloadKey, setLoanReloadKey] = useState(0)
 
@@ -108,6 +135,19 @@ function AdminLanding({adminName}: {adminName: string}) {
                 onCreated={() => {
                     setShowNewLoanForm(false);
                     setLoanReloadKey((key) => key + 1); // show the new loan
+                }}
+            />
+        )
+    }
+
+    if (payingLoan) {
+        return (
+            <AdminPaymentForm
+                loan={payingLoan}
+                onBack={() => setPayingLoan(null)}
+                onPaid={() => {
+                    setPayingLoan(null);
+                    setLoanReloadKey((key) => key + 1); // show the new balance
                 }}
             />
         )
@@ -146,6 +186,7 @@ function AdminLanding({adminName}: {adminName: string}) {
                                 <th>Duration<br />(years)</th>
                                 <th>Payment <br /> Frequency</th>
                                 <th>Date Created</th>
+                                <th>Payment</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -159,6 +200,14 @@ function AdminLanding({adminName}: {adminName: string}) {
                                     <td>{loan.loanDurationYears}</td>
                                     <td>{loan.paymentFrequency}</td>
                                     <td>{formatLoanDate(loan.dateCreated)}</td>
+                                    <td>
+                                        <button
+                                            type="button"
+                                            className="adminPayButton"
+                                            onClick={() => setPayingLoan(loan)}>
+                                            Pay
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                             </tbody>
@@ -172,6 +221,98 @@ function AdminLanding({adminName}: {adminName: string}) {
                     className="button back"
                     onClick={() => setShowHomePage(true)}>
                     Return To Main Menu
+                </button>
+            </div>
+        </main>
+    )
+}
+
+// Lets an admin make a payment on a customer's loan.
+// Uses the same rules and endpoint as the customer's own payment pop-up.
+function AdminPaymentForm({loan, onBack, onPaid}: { loan: UnpaidLoan; onBack: () => void; onPaid: () => void }) {
+    const paymentLoan = toPaymentLoan(loan)
+    const minimum = calculateMinimumPayment(paymentLoan)
+    const [paymentAmount, setPaymentAmount] = useState("")
+    const [error, setError] = useState("")
+    const [submitting, setSubmitting] = useState(false)
+    const [result, setResult] = useState<{ amount: number; newBalance: number } | null>(null)
+
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault()
+        setError("")
+        const amount = Number(paymentAmount)
+
+        setSubmitting(true)
+        try {
+            const updated = await processPayment(paymentLoan, amount)
+            setResult({amount, newBalance: updated.amountRemaining})
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Payment failed")
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    if (result) {
+        return (
+            <main>
+                <h1>Payment Successful!</h1>
+                <div className="paymentSuccess">
+                    <p><span>Customer</span><strong>{loan.customerName}</strong></p>
+                    <p><span>Payment made</span><strong>${result.amount.toFixed(2)}</strong></p>
+                    <p><span>Previous balance</span><strong>${loan.amountRemaining.toFixed(2)}</strong></p>
+                    <p><span>New balance</span><strong>${result.newBalance.toFixed(2)}</strong></p>
+                    <button type="button" className="button" onClick={onPaid}>
+                        Back to Loans
+                    </button>
+                </div>
+            </main>
+        )
+    }
+
+    return (
+        <main>
+            <div className="page loanPage">
+                <div className="loanBox">
+                    <h1>Payment for {loan.customerName}</h1>
+                    <p><span>Email</span><strong>{loan.customerEmail}</strong></p>
+                    <p><span>Loan amount</span><strong>${loan.amount.toLocaleString()}</strong></p>
+                    <p><span>Interest rate</span><strong>{loan.interest}%</strong></p>
+                    <p><span>Amount remaining</span><strong>${loan.amountRemaining.toLocaleString()}</strong></p>
+                    <p><span>Payment frequency</span><strong>{loan.paymentFrequency}</strong></p>
+                    <p><span>Opened</span><strong>{formatLoanDate(loan.dateCreated)}</strong></p>
+                </div>
+
+                <form className="customer-payment" onSubmit={handleSubmit}>
+                    <label htmlFor="adminPaymentAmount">Payment amount</label>
+                    <div className="customer-payment-row">
+                        <input
+                            id="adminPaymentAmount"
+                            type="number"
+                            min={minimum}
+                            max={loan.amountRemaining}
+                            step="0.01"
+                            required
+                            value={paymentAmount}
+                            placeholder={`Min $${minimum.toFixed(2)}`}
+                            onChange={(event) => setPaymentAmount(event.currentTarget.value)}
+                        />
+                        <button
+                            type="button"
+                            className="customer-minimum"
+                            onClick={() => setPaymentAmount(minimum.toFixed(2))}>
+                            Use minimum
+                        </button>
+                        <button type="submit" className="payment" disabled={submitting}>
+                            {submitting ? "Processing..." : "Submit Payment"}
+                        </button>
+                    </div>
+                </form>
+
+                {error && <p role="alert" className="customer-error">{error}</p>}
+
+                <button type="button" className="button back" onClick={onBack}>
+                    Back
                 </button>
             </div>
         </main>

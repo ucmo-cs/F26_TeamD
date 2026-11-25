@@ -19,3 +19,13 @@
 {
     color-scheme: dark;
 }
+
+.adminPayButton
+{
+    min-height: 0;
+    margin: 0;
+    padding: 4px 12px;
+    background-color: var(--accent);
+    color: black;
+    font-size: 0.8rem;
+}

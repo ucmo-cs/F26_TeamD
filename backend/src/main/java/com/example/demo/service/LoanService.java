@@ -4,8 +4,12 @@ package com.example.demo.service;
 
 import com.example.demo.domain.Customer;
 import com.example.demo.domain.Loan;
+import com.example.demo.domain.PaymentSchedule;
 import com.example.demo.repository.CustomerRepository;
 import com.example.demo.repository.LoanRepository;
+import com.example.demo.repository.PaymentScheduleRepository;
+
+
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,12 +25,16 @@ public class LoanService {
     // Repositories communicate with MySQL
     private final LoanRepository loanRepository;
     private final CustomerRepository customerRepository;
+    private final LoanCalculator loanCalculator;
+    private final PaymentScheduleRepository paymentScheduleRepository;
 
     // Spring automatically provides both repositories
     public LoanService(LoanRepository loanRepository,
-                       CustomerRepository customerRepository) {
+                       CustomerRepository customerRepository, LoanCalculator loanCalculator, PaymentScheduleRepository paymentScheduleRepository) {
         this.loanRepository = loanRepository;
         this.customerRepository = customerRepository;
+        this.loanCalculator = loanCalculator;
+        this.paymentScheduleRepository = paymentScheduleRepository;
     }
 
     // GET: Retrieve all loans
@@ -160,6 +168,16 @@ public class LoanService {
                     HttpStatus.BAD_REQUEST,
                     "Payment cannot be more than the remaining balance of $"
                             + loan.getRemainingBalance()
+            );
+        }
+
+        String frequency = paymentScheduleRepository.findByLoan_LoanId(id)
+                .map(PaymentSchedule::getFrequency)
+                .orElse("MONTHLY");
+        if (amount.compareTo(loanCalculator.calculateMinimumPayment(loan.getRemainingBalance(), loan.getInterestRate(), loan.getLoanTermMonths(), frequency)) < 0 ){
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payment must be above the minimum payment"
             );
         }
 
