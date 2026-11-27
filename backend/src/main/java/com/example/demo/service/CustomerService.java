@@ -19,6 +19,20 @@ public class CustomerService {
 
     private static final Pattern CUSTOMER_USERNAME =
             Pattern.compile("[A-Za-z][A-Za-z0-9_]{4,19}");
+    // Username may contain punctuation (except whitespace and @); domain labels
+    // contain only letters/numbers and are separated by dots.
+    private static final Pattern CUSTOMER_EMAIL = Pattern.compile(
+            "[^\\s@]{1,24}@[A-Za-z0-9]+(?:\\.[A-Za-z0-9]+)+"
+    );
+
+    private void validateCustomerEmail(String email) {
+        if (!CUSTOMER_EMAIL.matcher(email).matches()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Email must have a username under 25 characters and a valid domain, with no spaces"
+            );
+        }
+    }
 
     private void validateCustomerName(String name) {
         if (!CUSTOMER_USERNAME.matcher(name).matches()) {
@@ -58,6 +72,7 @@ public class CustomerService {
                     "Customer email is required"
             );
         }
+        validateCustomerEmail(customer.getEmail());
 
         // Make sure the customer has a password
         if (customer.getPassword() == null ||
@@ -134,6 +149,7 @@ public class CustomerService {
                     "Customer email is required"
             );
         }
+        validateCustomerEmail(updatedCustomer.getEmail());
 
         // Prevent another customer from using the same email
         if (!existingCustomer.getEmail().equals(updatedCustomer.getEmail())

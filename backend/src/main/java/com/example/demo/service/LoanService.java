@@ -174,7 +174,11 @@ public class LoanService {
         String frequency = paymentScheduleRepository.findByLoan_LoanId(id)
                 .map(PaymentSchedule::getFrequency)
                 .orElse("MONTHLY");
-        if (amount.compareTo(loanCalculator.calculateMinimumPayment(loan.getRemainingBalance(), loan.getInterestRate(), loan.getLoanTermMonths(), frequency)) < 0 ){
+        BigDecimal minimumPayment = loanCalculator.calculateMinimumPayment(
+                loan.getOriginalAmount(), loan.getInterestRate(), loan.getLoanTermMonths(), frequency);
+        // Keep the scheduled minimum fixed; allow a smaller final payment to clear the remaining balance.
+        if (amount.compareTo(minimumPayment) < 0
+                && amount.compareTo(loan.getRemainingBalance()) < 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Payment must be above the minimum payment"

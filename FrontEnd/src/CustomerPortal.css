@@ -78,32 +78,39 @@
 }
 .loanTable
 {
-    width: auto;
-    max-width: calc(100% - 32px);
-    margin: 20px auto;
-    border-collapse: collapse;
-    font-family: monospace;
+    width: min(100%, 1100px);
+    margin: 24px auto;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: var(--sans);
     background-color: #2e303a;
     font-size: 0.9rem;
     table-layout: auto;
-    border-radius: 15px;
+    border: 1px solid #555;
+    border-radius: 12px;
     overflow: hidden;
 }
 .loanTable th,
 .loanTable td
 {
-    padding: 8px;
-    border: 1px solid #555;
+    padding: 13px 16px;
+    border-bottom: 1px solid #4a4c56;
     text-align: center;
+    white-space: nowrap;
 
 }
 .loanTable th
 {
     color: skyblue;
+    background-color: #252730;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
 }
 .loanTable td
 {
     color: lightgray;
+    font-variant-numeric: tabular-nums;
 }
 .loanTable th:nth-child(3),
 .loanTable td:nth-child(3),
@@ -120,6 +127,30 @@
 .loanTable tbody tr:nth-child(even)
 {
     background-color: #393c47;
+}
+.loanTable tbody tr:hover
+{
+    background-color: #424550;
+}
+.loanTable tbody tr:last-child td
+{
+    border-bottom: 0;
+}
+.loanTable .payment
+{
+    width: auto;
+    margin: 0;
+    padding: 8px 12px;
+    white-space: nowrap;
+}
+@media (max-width: 900px)
+{
+    .loanTable
+    {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+    }
 }
 .userInfoPanel
 {

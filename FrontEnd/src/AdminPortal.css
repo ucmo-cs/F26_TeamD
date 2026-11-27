@@ -29,3 +29,46 @@
     color: black;
     font-size: 0.8rem;
 }
+.adminLoanRow
+{
+    cursor: pointer;
+}
+.adminLoanRow:hover,
+.adminLoanRow:focus-visible
+{
+    background-color: #424550 !important;
+    outline: 2px solid skyblue;
+    outline-offset: -2px;
+}
+.adminLoanDetailsRow td
+{
+    padding: 16px !important;
+    background: #252730;
+    white-space: normal !important;
+}
+.adminLoanDetailsTile
+{
+    padding: 18px;
+    border: 1px solid #555;
+    border-radius: 10px;
+    background: #2e303a;
+    text-align: left;
+}
+.adminLoanDetails
+{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px 20px;
+    margin: 0;
+}
+.adminLoanDetails dt
+{
+    color: #aaa;
+    font-size: 0.75rem;
+}
+.adminLoanDetails dd
+{
+    margin: 2px 0 0;
+    color: lightgray;
+    font-variant-numeric: tabular-nums;
+}

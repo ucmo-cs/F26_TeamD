@@ -76,22 +76,25 @@ export async function getLoansForCustomer(customerId: number): Promise<Loan[]> {
 
 
 
-// returns minimum payment based off of amountReamining and interest
-// uses Standard Amortization Formula
+// Returns the fixed payment calculated from the original loan amount and term.
 export function calculateMinimumPayment(loan: Loan): number {
-    //get percentile of monthly interest and amount of months to pay
-    const monthlyRate = loan.interest / 100 / 12;
-    const numberOfPayments = loan.loanDurationYears * 12
+    const frequency = loan.paymentFrequency;
+    const paymentsPerYear = frequency === "weekly" ? 52 : frequency === "biweekly" ? 26 : 12;
+    const periodicRate = loan.interest / 100 / paymentsPerYear;
+    const numberOfPayments = Math.ceil(loan.loanDurationYears * 12 * paymentsPerYear / 12);
 
     if (numberOfPayments <= 0) return 0;
 
-    if (monthlyRate === 0) {
-        return loan.amountRemaining / numberOfPayments;
+    let payment: number;
+    if (periodicRate === 0) {
+        payment = loan.amount / numberOfPayments;
+    } else {
+        const factor = (1 + periodicRate) ** numberOfPayments;
+        payment = loan.amount * periodicRate * factor / (factor - 1);
     }
-    const factor = (1 + monthlyRate) ** numberOfPayments;
 
-    //return value at 2 decimal point value
-    return Math.round((loan.amountRemaining * monthlyRate * factor) / (factor - 1) * 100) / 100;
+    // Match the backend, which rounds the minimum upward to a whole cent.
+    return Math.ceil((payment - Number.EPSILON * Math.abs(payment)) * 100) / 100;
 }
 
 // keep payment process out of front-end
@@ -129,7 +132,7 @@ function validatePayment(loan: Loan, amount: number): void {
     // calculate the minimum
     if (
         !Number.isFinite(amount) ||
-        amount < minimum ||
+        (amount < minimum && amount < loan.amountRemaining) ||
         amount > loan.amountRemaining) {
         throw new Error("Payment must be between the minimum and remaining balance");
     }

@@ -101,6 +101,39 @@ class DemoApplicationTests {
     }
 
 
+    @Test
+    void acceptsEmailWithAlphanumericUsername() {
+        assertDoesNotThrow(() -> customerService.createCustomer(
+                customer("Alice_123", "John123@gmail.com")));
+    }
+
+    @Test
+    void acceptsEmailWithUnderscoreInUsername() {
+        assertDoesNotThrow(() -> customerService.createCustomer(
+                customer("Alice_123", "John_123@gmail.com")));
+    }
+
+    @Test
+    void rejectsEmailWithUsernameLongerThanTwentyFourCharacters() {
+        assertInvalidEmail("JohnJohnJohnJohnJohnJohnJohnJohnJohn@gmail.com");
+    }
+
+    @Test
+    void rejectsEmailWithWhitespace() {
+        assertInvalidEmail("John 123@gmail.com");
+    }
+
+    @Test
+    void rejectsEmailWithoutAtSignAndDomainSeparator() {
+        assertInvalidEmail("Johngmail.com");
+    }
+
+    @Test
+    void acceptsEmailWithSpecialCharactersInUsername() {
+        assertDoesNotThrow(() -> customerService.createCustomer(
+                customer("Alice_123", "John!$%@gmail.com")));
+    }
+
     private void assertInvalidUsername(String username) {
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
@@ -112,10 +145,25 @@ class DemoApplicationTests {
                 exception.getReason());
     }
 
+    private void assertInvalidEmail(String email) {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> customerService.createCustomer(customer("Alice_123", email)));
+
+        assertEquals(400, exception.getStatusCode().value());
+        assertEquals(
+                "Email must have a username under 25 characters and a valid domain, with no spaces",
+                exception.getReason());
+    }
+
     private Customer customer(String username) {
+        return customer(username, "alice@example.com");
+    }
+
+    private Customer customer(String username, String email) {
         Customer customer = new Customer();
         customer.setName(username);
-        customer.setEmail("alice@example.com");
+        customer.setEmail(email);
         customer.setPassword("TestPass123!");
         return customer;
     }

@@ -1,4 +1,4 @@
-import {useEffect, useState, type FormEvent} from "react"
+import {Fragment, useEffect, useState, type FormEvent} from "react"
 import "./CustomerPortal.css"
 import "./AdminPortal.css"
 import App from "./App"
@@ -108,6 +108,7 @@ function AdminLanding({adminName}: {adminName: string}) {
     const [showNewLoanForm, setShowNewLoanForm] = useState(false)
     // the loan the admin is making a payment on (null = show the table)
     const [payingLoan, setPayingLoan] = useState<UnpaidLoan | null>(null)
+    const [expandedLoanId, setExpandedLoanId] = useState<number | null>(null)
     // bump this to re-fetch loans (e.g. after creating a loan)
     const [loanReloadKey, setLoanReloadKey] = useState(0)
 
@@ -191,7 +192,21 @@ function AdminLanding({adminName}: {adminName: string}) {
                             </thead>
                             <tbody>
                             {loans.map((loan) => (
-                                <tr key={loan.id}>
+                                <Fragment key={loan.id}>
+                                <tr
+                                    className="adminLoanRow"
+                                    tabIndex={0}
+                                    aria-expanded={expandedLoanId === loan.id}
+                                    aria-label={`${loan.customerName}, loan ${loan.id}. ${expandedLoanId === loan.id ? "Collapse" : "Expand"} loan details`}
+                                    onClick={(event) => {
+                                        if ((event.target as HTMLElement).closest("button")) return;
+                                        setExpandedLoanId(expandedLoanId === loan.id ? null : loan.id);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
+                                        event.preventDefault();
+                                        setExpandedLoanId(expandedLoanId === loan.id ? null : loan.id);
+                                    }}>
                                     <td>{loan.customerName}</td>
                                     <td>{loan.customerEmail}</td>
                                     <td>${loan.amount.toLocaleString()}</td>
@@ -209,6 +224,27 @@ function AdminLanding({adminName}: {adminName: string}) {
                                         </button>
                                     </td>
                                 </tr>
+                                {expandedLoanId === loan.id && (
+                                    <tr className="adminLoanDetailsRow">
+                                        <td colSpan={9}>
+                                            <div className="adminLoanDetailsTile">
+                                                <dl className="adminLoanDetails">
+                                                    <div><dt>Loan ID</dt><dd>{loan.id}</dd></div>
+                                                    <div><dt>Customer</dt><dd>{loan.customerName}</dd></div>
+                                                    <div><dt>Email</dt><dd>{loan.customerEmail}</dd></div>
+                                                    <div><dt>Original amount</dt><dd>${loan.amount.toLocaleString()}</dd></div>
+                                                    <div><dt>Outstanding balance</dt><dd>${loan.amountRemaining.toLocaleString()}</dd></div>
+                                                    <div><dt>Interest rate</dt><dd>{loan.interest}%</dd></div>
+                                                    <div><dt>Loan duration</dt><dd>{loan.loanDurationYears} years</dd></div>
+                                                    <div><dt>Payment frequency</dt><dd>{loan.paymentFrequency}</dd></div>
+                                                    <div><dt>Date opened</dt><dd>{formatLoanDate(loan.dateCreated)}</dd></div>
+                                                    <div><dt>Minimum payment</dt><dd>${calculateMinimumPayment(toPaymentLoan(loan)).toFixed(2)}</dd></div>
+                                                </dl>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                                </Fragment>
                             ))}
                             </tbody>
                         </table>
@@ -362,6 +398,10 @@ function NewLoanForm({onBack, onCreated}: { onBack: () => void; onCreated: () =>
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault()
         setError("")
+        if (customerMode === "new" && !/^[^\s@]{1,24}@[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)+$/.test(email.trim())) {
+            setError("Email must have a username under 25 characters and a valid domain, with no spaces")
+            return
+        }
 
         const originalAmount = Number(amount)
         const interestRate = Number(interestPercent) / 100
@@ -442,6 +482,8 @@ function NewLoanForm({onBack, onCreated}: { onBack: () => void; onCreated: () =>
                             <label htmlFor="newEmail">Email</label>
                             <input id="newEmail" type="email" value={email} required
                                    onChange={(event) => setEmail(event.currentTarget.value)} />
+                            {email.trim() && !/^[^\s@]{1,24}@[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)+$/.test(email.trim()) &&
+                                <p role="alert" className="customer-error">Email must have a username under 25 characters and a valid domain, with no spaces</p>}
                             <label htmlFor="newPhone">Phone (optional)</label>
                             <input id="newPhone" type="tel" value={phone}
                                    onChange={(event) => setPhone(event.currentTarget.value)} />
